@@ -1,0 +1,60 @@
+void OpenFileExist(char path[]) {
+    if (FindOpenFile(path) != -1) {
+        FileSelect(FindOpenFile(path));
+    } else {
+        FileOpen(path, false, "Hex", false);
+    }
+}
+
+char folder[] = InputDirectory("Select a folder", "");
+Assert((Strcmp(folder, "") != 0), "no folder was selected.");
+
+TFileList fl = FindFiles( folder, "*.shdr" );
+
+string basename;
+uint index, shader_offset, new_size;
+
+int i;
+int sdb = GetFileNum();
+
+for (i = 0; i < sizeof(shader_size) / 4; i++) {
+    local struct {
+        uint size = ReadUInt(i*4 + startof(shader_size));
+    } shader_size_copy;
+}
+
+uint GetShadeBaseAddress(uint index) {
+    int i;
+    uint add = shaderdb_offset + 16;
+    for (i = 0; i < index; i++) {
+        add += shader_size_copy[i].size;
+    }
+    return add;
+}
+
+ubyte data[1280000];
+
+int total_diff = 0;
+
+for (i = 0; i < fl.filecount; i++) {
+    OpenFileExist(folder + "\\" + fl.file[i].filename);
+    new_size = FileSize();
+    ReadBytes(data, 0, new_size);
+    FileClose();
+    FileSelect(sdb);
+    basename = FileNameGetBase(fl.file[i].filename);
+    basename = SubStr(basename, 0, sizeof(basename) - 6);
+    index = Atoi(basename);
+    shader_offset = GetShadeBaseAddress(index);
+    DeleteBytes(shader_offset, shader_size_copy[index].size);
+    InsertBytes(shader_offset, new_size, 0);
+    WriteBytes(data, shader_offset, new_size);
+    
+    total_diff += (new_size - shader_size[index].size);
+    
+    shader_size[index].size = new_size;
+    shader_size_copy[index].size = new_size;
+}
+
+shaderdb_size[0] = shaderdb_size[0] + total_diff;
+shaderdb_size[1] = shaderdb_size[1] + total_diff;
